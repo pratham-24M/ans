@@ -347,13 +347,13 @@ class LearningSwitch(app_manager.RyuApp):
                     elif dst_ip in self.router_macs:
                         return
 
-            # firewall
-            if tcp_pkt != None or udp_pkt != None:
-                if src_ip == "192.168.1.123" and dst_ip == "10.0.2.2":
-                    return
+            # firewall (No TCP/UDP connection btw. ser & ext)
+            SER_IP = "10.0.2.2"
 
-                if src_ip == "10.0.2.2" and dst_ip == "192.168.1.123":
-                    return
+            if tcp_pkt is not None or udp_pkt is not None:
+                if (src_ext and dst_ip == SER_IP) or (dst_ext and src_ip == SER_IP):
+                    self.logger.info("Packet drop");
+                    return;
 
             # check routing table
             out_port = None
