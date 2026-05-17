@@ -279,18 +279,20 @@ class LearningSwitch(app_manager.RyuApp):
 
             self.learn_arp(src_ip, src)
 
-            # ext network isolation
-            ext_net = ipaddress.ip_network("192.168.1.0/24")
+            # Extract protocols for firewall/isolation rules
+            icmp_pkt = pkt.get_protocol(icmp.icmp)
+            tcp_pkt = pkt.get_protocol(tcp.tcp)
+            udp_pkt = pkt.get_protocol(udp.udp)
 
+            # ext network isolation (Only drop ICMP to allow TCP/UDP connection tests)
+            ext_net = ipaddress.ip_network("192.168.1.0/24")
             src_ext = ipaddress.ip_address(src_ip) in ext_net
             dst_ext = ipaddress.ip_address(dst_ip) in ext_net
 
-            if src_ext != dst_ext:
+            if src_ext != dst_ext and icmp_pkt != None:
                 return
 
             # ping handling
-            icmp_pkt = pkt.get_protocol(icmp.icmp)
-
             if icmp_pkt != None:
 
                 if icmp_pkt.type == icmp.ICMP_ECHO_REQUEST:
@@ -341,15 +343,12 @@ class LearningSwitch(app_manager.RyuApp):
 
                         return
 
+                    # Drop pings to other gateways
                     elif dst_ip in self.router_macs:
                         return
 
             # firewall
-            tcp_pkt = pkt.get_protocol(tcp.tcp)
-            udp_pkt = pkt.get_protocol(udp.udp)
-
             if tcp_pkt != None or udp_pkt != None:
-
                 if src_ip == "192.168.1.123" and dst_ip == "10.0.2.2":
                     return
 
@@ -401,6 +400,7 @@ class LearningSwitch(app_manager.RyuApp):
             actions = [
                 parser.OFPActionSetField(eth_src=srcMac),
                 parser.OFPActionSetField(eth_dst=dstMac),
+                parser.OFPActionDecNwTtl(),
                 parser.OFPActionOutput(out_port)
             ]
 
@@ -508,6 +508,7 @@ class LearningSwitch(app_manager.RyuApp):
         actions = [
             parser.OFPActionSetField(eth_src=srcMac),
             parser.OFPActionSetField(eth_dst=dstMac),
+            parser.OFPActionDecNwTtl(),
             parser.OFPActionOutput(out_port)
         ]
 
